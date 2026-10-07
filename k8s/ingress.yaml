@@ -1,0 +1,13 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: blog-ingress
+  namespace: blog
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 2m
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:            # add `host: api.yourdomain.com` once you have a domain
+        paths:
+          - {path: /, pathType: Prefix, backend: {service: {name: blog-backend, port: {number: 80}}}}

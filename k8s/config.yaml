@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: {name: blog-config, namespace: blog}
+data:
+  DB_HOST: postgres
+  DB_NAME: blog
+  DB_USER: blog
+  DJANGO_ALLOWED_HOSTS: "*"
+  LOG_LEVEL: INFO
+---
+# Demo values only. For real use create this secret with kubectl and don't commit it.
+apiVersion: v1
+kind: Secret
+metadata: {name: blog-secret, namespace: blog}
+stringData:
+  DB_PASSWORD: change-me-db
+  DJANGO_SECRET_KEY: change-me-django-secret
+  DEMO_USER: demo
+  DEMO_PASSWORD: demo12345

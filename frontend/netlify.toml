@@ -1,0 +1,22 @@
+# Netlify proxies API calls to the AWS backend, so the browser stays on HTTPS
+# (no mixed-content or CORS problems). Replace BACKEND_HOST with your ingress domain/IP.
+[build]
+  publish = "."
+
+[[redirects]]
+  from = "/api/*"
+  to = "http://BACKEND_HOST/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/posts/*"
+  to = "http://BACKEND_HOST/posts/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/posts"
+  to = "http://BACKEND_HOST/posts/"
+  status = 200
+  force = true

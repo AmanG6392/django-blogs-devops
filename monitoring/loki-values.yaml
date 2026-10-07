@@ -1,0 +1,4 @@
+# helm upgrade --install loki grafana/loki-stack -n monitoring -f monitoring/loki-values.yaml
+loki: {enabled: true, persistence: {enabled: true, size: 5Gi}}
+promtail: {enabled: true}    # ships all pod stdout (incl. Django/gunicorn logs) to Loki
+grafana: {enabled: false}    # Grafana comes from kube-prometheus-stack

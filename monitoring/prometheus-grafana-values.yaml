@@ -1,0 +1,13 @@
+# helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+#   -n monitoring --create-namespace -f monitoring/prometheus-grafana-values.yaml
+prometheus:
+  prometheusSpec:
+    serviceMonitorSelectorNilUsesHelmValues: false
+grafana:
+  adminPassword: change-me
+  service: {type: LoadBalancer}      # gives a public Grafana URL (use ClusterIP + port-forward if you prefer)
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      url: http://loki:3100
+      access: proxy

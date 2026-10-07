@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Field Notes — Django Blog</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f2f5f1;--ink:#16221c;--muted:#5b6b62;--line:#cdd8d0;--accent:#1f5c46;--paper:#fff;--err:#a3262a}
+@media (prefers-color-scheme:dark){:root{--bg:#121a16;--ink:#e8efe9;--muted:#9bada2;--line:#2b3a32;--accent:#6fcf9f;--paper:#192420;--err:#ff8b8e}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 Inter,system-ui,sans-serif}
+.wrap{max-width:720px;margin:0 auto;padding:32px 20px 80px}
+h1{font:800 clamp(2.4rem,8vw,4rem)/1 Fraunces,Georgia,serif;margin:0 0 6px;letter-spacing:-.02em}
+h2{font:600 1.5rem/1.2 Fraunces,Georgia,serif;margin:0 0 6px}
+.sub{color:var(--muted);margin:0 0 28px}
+.bar{display:flex;gap:10px;align-items:center;justify-content:space-between;border-block:1px solid var(--line);padding:10px 0;margin-bottom:28px;flex-wrap:wrap}
+input,textarea,button{font:inherit;color:inherit}
+input,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:var(--paper)}
+textarea{min-height:90px;resize:vertical}
+button{cursor:pointer;border:0;border-radius:6px;padding:9px 16px;background:var(--accent);color:var(--bg);font-weight:500}
+button.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+form{display:grid;gap:10px;margin-bottom:28px}
+.login{grid-template-columns:1fr 1fr auto;align-items:center}
+@media(max-width:560px){.login{grid-template-columns:1fr}}
+article{border-top:1px solid var(--line);padding:22px 0}
+.meta{color:var(--muted);font-size:.9rem}
+.comments{margin-top:12px;padding-left:14px;border-left:3px solid var(--line)}
+.comments p{margin:6px 0}
+.cform{display:flex;gap:8px;margin-top:10px}
+.msg{min-height:1.4em;color:var(--err);margin:0 0 12px}
+.msg.ok{color:var(--accent)}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <h1>Field Notes</h1>
+  <p class="sub">A small blog backed by Django, JWT and Kubernetes.</p>
+
+  <div class="bar">
+    <span id="who">Not signed in</span>
+    <button id="logout" class="ghost" hidden>Sign out</button>
+  </div>
+  <p id="msg" class="msg" role="status"></p>
+
+  <form id="login" class="login">
+    <input id="u" placeholder="Username" autocomplete="username" required>
+    <input id="p" type="password" placeholder="Password" autocomplete="current-password" required>
+    <button>Sign in</button>
+  </form>
+
+  <form id="newpost" hidden>
+    <h2>Write a post</h2>
+    <input id="t" placeholder="Title" required maxlength="200">
+    <textarea id="c" placeholder="What's on your mind?" required></textarea>
+    <button>Publish post</button>
+  </form>
+
+  <section id="posts" aria-live="polite"></section>
+</main>
+
+<script>
+// Empty string = same origin (nginx locally, Netlify proxy in production, see netlify.toml).
+// To call the backend directly instead, set e.g. "https://api.example.com".
+const API = window.API_BASE || "";
+let access = localStorage.getItem("access");
+let refresh = localStorage.getItem("refresh");
+const $ = id => document.getElementById(id);
+
+function say(text, ok){ const m=$("msg"); m.textContent=text||""; m.className="msg"+(ok?" ok":""); }
+
+async function api(path, opts={}, retry=true){
+  const headers = {"Content-Type":"application/json", ...(opts.headers||{})};
+  if(access) headers.Authorization = "Bearer "+access;
+  const r = await fetch(API+path, {...opts, headers});
+  if(r.status===401 && refresh && retry){
+    const rr = await fetch(API+"/api/token/refresh/",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({refresh})});
+    if(rr.ok){ access=(await rr.json()).access; localStorage.setItem("access",access); return api(path,opts,false); }
+    signOut(); say("Session expired. Sign in again.");
+  }
+  return r;
+}
+
+function render(){
+  const on = !!access;
+  $("who").textContent = on ? "Signed in as "+(localStorage.getItem("user")||"you") : "Not signed in";
+  $("logout").hidden = !on; $("login").hidden = on; $("newpost").hidden = !on;
+}
+function signOut(){ access=refresh=null; ["access","refresh","user"].forEach(k=>localStorage.removeItem(k)); render(); loadPosts(); }
+function esc(s){ const d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
+
+async function loadPosts(){
+  const box=$("posts");
+  try{
+    const r = await api("/posts/"); const data = await r.json();
+    const posts = data.results || data;
+    if(!posts.length){ box.innerHTML='<p class="meta">No posts yet. Sign in and write the first one.</p>'; return; }
+    box.innerHTML = posts.map(p=>`
+      <article data-id="${p.id}">
+        <h2>${esc(p.title)}</h2>
+        <div class="meta">${esc(p.author)} · ${new Date(p.created_at).toLocaleString()}</div>
+        <p>${esc(p.content)}</p>
+        <button class="ghost" data-act="toggle">Comments (${p.comment_count})</button>
+        <div class="comments" hidden></div>
+      </article>`).join("");
+  }catch(e){ box.innerHTML='<p class="msg">Could not reach the API. Check the backend address.</p>'; }
+}
+
+async function loadComments(article){
+  const id=article.dataset.id, box=article.querySelector(".comments");
+  const list = await (await api(`/posts/${id}/comments/`)).json();
+  const items = (list.results||list).map(c=>`<p><strong>${esc(c.author)}</strong>: ${esc(c.content)}</p>`).join("") || '<p class="meta">No comments yet.</p>';
+  box.innerHTML = items + (access ? `<div class="cform"><input placeholder="Add a comment" aria-label="Comment"><button data-act="comment">Post comment</button></div>` : '<p class="meta">Sign in to comment.</p>');
+}
+
+$("posts").addEventListener("click", async e=>{
+  const act=e.target.dataset.act; if(!act) return;
+  const art=e.target.closest("article"), box=art.querySelector(".comments");
+  if(act==="toggle"){ box.hidden=!box.hidden; if(!box.hidden) await loadComments(art); }
+  if(act==="comment"){
+    const inp=box.querySelector("input"); if(!inp.value.trim()) return;
+    const r=await api(`/posts/${art.dataset.id}/comments/`,{method:"POST",body:JSON.stringify({content:inp.value})});
+    if(r.ok){ await loadComments(art); } else say("Could not add comment.");
+  }
+});
+
+$("login").addEventListener("submit", async e=>{
+  e.preventDefault(); say("");
+  const r = await fetch(API+"/api/token/",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:$("u").value,password:$("p").value})});
+  if(!r.ok){ say("Wrong username or password."); return; }
+  const t = await r.json(); access=t.access; refresh=t.refresh;
+  localStorage.setItem("access",access); localStorage.setItem("refresh",refresh); localStorage.setItem("user",$("u").value);
+  $("p").value=""; render(); say("Signed in.",true); loadPosts();
+});
+$("newpost").addEventListener("submit", async e=>{
+  e.preventDefault(); say("");
+  const r = await api("/posts/",{method:"POST",body:JSON.stringify({title:$("t").value,content:$("c").value})});
+  if(r.ok){ $("t").value=$("c").value=""; say("Post published.",true); loadPosts(); } else say("Could not publish the post.");
+});
+$("logout").addEventListener("click", signOut);
+
+render(); loadPosts();
+</script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: blog-backend, namespace: blog, labels: {app: blog-backend}}
+spec:
+  replicas: 2
+  selector: {matchLabels: {app: blog-backend}}
+  template:
+    metadata: {labels: {app: blog-backend}}
+    spec:
+      containers:
+        - name: django
+          image: DOCKERHUB_USER/django-blog:latest   # replaced by the CD pipeline
+          imagePullPolicy: Always
+          ports: [{containerPort: 8000}]
+          envFrom:
+            - configMapRef: {name: blog-config}
+            - secretRef: {name: blog-secret}
+          readinessProbe:
+            httpGet: {path: /readiness/, port: 8000}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /health/, port: 8000}
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          resources:
+            requests: {cpu: 100m, memory: 192Mi}
+            limits: {cpu: 500m, memory: 512Mi}
