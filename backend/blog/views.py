@@ -13,7 +13,7 @@ logger = logging.getLogger("blog")
 
 def _author_for(user):
     author, _ = Author.objects.get_or_create(
-        user=user, defaults={"display_namee": user.get_username()})
+        user=user, defaults={"display_name": user.get_username()})
     return author
 
 
