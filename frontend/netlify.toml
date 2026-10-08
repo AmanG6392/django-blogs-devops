@@ -5,18 +5,18 @@
 
 [[redirects]]
   from = "/api/*"
-  to = "http://BACKEND_HOST/api/:splat"
+  to = "https://django-blog-latest-zfn4.onrender.com/api/:splat"
   status = 200
   force = true
 
 [[redirects]]
   from = "/posts/*"
-  to = "http://BACKEND_HOST/posts/:splat"
+  to = "https://django-blog-latest-zfn4.onrender.com/posts/:splat"
   status = 200
   force = true
 
 [[redirects]]
   from = "/posts"
-  to = "http://BACKEND_HOST/posts/"
+  to = "https://django-blog-latest-zfn4.onrender.com/posts/"
   status = 200
   force = true
